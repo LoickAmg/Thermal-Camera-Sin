@@ -1,0 +1,33 @@
+[project]
+name = "thermal-camera-sim"
+version = "0.1.0"
+description = "Simulation de caméra thermique (colormaps, filtres, détection de point chaud) à partir d'une webcam ou d'une source synthétique."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.26",
+    "opencv-python>=4.9",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+thermal-camera-sim = "thermal_camera_sim.main:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
