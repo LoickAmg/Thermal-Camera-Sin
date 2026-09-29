@@ -63,39 +63,6 @@ def load_image_frame(path: str | Path) -> np.ndarray:
     return frame
 
 
-def stream_webcam(
-    colormap: Colormap = Colormap.IRON,
-    contrast: str = "auto",
-    blur_kernel: int = 9,
-    device_index: int = 0,
-    window_name: str = "thermal-camera-sim",
-) -> None:
-    """Affiche en direct le rendu thermique de la webcam. Nécessite une vraie caméra.
-
-    Lève RuntimeError si la caméra ne peut pas être ouverte, plutôt que de
-    planter silencieusement ou de boucler sur des frames vides — même
-    contrat que ascii-camera.
-    """
-    cap = cv2.VideoCapture(device_index)
-    if not cap.isOpened():
-        raise RuntimeError(
-            f"Impossible d'ouvrir la caméra #{device_index}. "
-            "Utilisez --source demo pour tester sans webcam."
-        )
-    try:
-        while True:
-            ok, frame = cap.read()
-            if not ok:
-                raise RuntimeError("Échec de lecture d'une frame webcam.")
-            thermal = frame_to_thermal(frame, colormap, contrast, blur_kernel)
-            cv2.imshow(window_name, thermal)
-            if cv2.waitKey(1) & 0xFF in (ord("q"), 27):  # 'q' ou Échap
-                break
-    finally:
-        cap.release()
-        cv2.destroyAllWindows()
-
-
 def export_thermal_video(
     output_path: str | Path,
     source: str = "demo",
