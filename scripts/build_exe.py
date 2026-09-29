@@ -36,7 +36,8 @@ def make_icon(path: Path) -> None:
     d = ImageDraw.Draw(img)
     c, r = size // 2, 34
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-        d.line((c + dx * 14, c + dy * 14, c + dx * (r + 22), c + dy * (r + 22)), fill="white", width=9)
+        start, end = (c + dx * 14, c + dy * 14), (c + dx * (r + 22), c + dy * (r + 22))
+        d.line((*start, *end), fill="white", width=9)
     d.ellipse((c - 8, c - 8, c + 8, c + 8), outline="white", width=5)
     img.save(path, sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
 
