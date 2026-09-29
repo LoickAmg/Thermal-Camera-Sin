@@ -19,9 +19,40 @@ concept — ce n'est pas une mesure physique. Objectif : pédagogique/démo,
 dans la continuité de `ascii-camera` (autre traitement d'image temps réel du
 même roadmap).
 
-## Fonctionnalités
+## En bref : à quoi ça sert ?
 
-- 3 palettes : `iron` (façon FLIR), `rainbow`, `grayscale`.
+Donner à n'importe quelle webcam le **look d'une caméra thermique** : l'image est recolorée
+avec les palettes des vraies caméras (Iron façon FLIR, Rainbow, White/Black hot, Arctic, Lava),
+et l'interface affiche ce qu'on voit sur ces appareils — échelle de « températures », réticule
+central, points le plus chaud et le plus froid, points de mesure posés à la souris. Les
+« températures » sont tirées de la **luminosité** de l'image (pas d'un capteur infrarouge) :
+c'est un outil pédagogique et ludique pour comprendre le traitement d'image, pas un instrument.
+
+## Lancer l'application (sans commande)
+
+Double-cliquez sur `dist/ThermalCameraSim.exe` (après l'avoir construit, voir plus bas) :
+la fenêtre s'ouvre sur la webcam, ou sur une scène de démonstration animée s'il n'y en a pas.
+
+| Touche | Action |
+|---|---|
+| `P` ou `1`–`6` | changer de palette |
+| `C` | contraste : auto / égalisé / brut |
+| `+` / `−` | flou du « capteur » |
+| clic gauche / droit | poser (3 max) / effacer des points de mesure |
+| `W` | basculer webcam / démo |
+| `S` | capture PNG dans `Images/Thermal Camera Sim` |
+| `F`, `H`, `Q` | plein écran, aide, quitter |
+
+Construire l'exécutable (Windows) :
+
+```bash
+pip install -e ".[build]"
+python scripts/build_exe.py      # → dist/ThermalCameraSim.exe (autonome, sans console)
+```
+
+## Fonctionnalités
+- 6 palettes : `iron` (façon FLIR, dessinée à la main), `rainbow`, `grayscale` (white hot),
+  `black-hot`, `arctic`, `lava`.
 - Flou gaussien configurable (simule la résolution/le bruit plus faibles
   d'un vrai capteur thermique).
 - Contraste automatique (étirement min/max) ou égalisation d'histogramme.
@@ -44,8 +75,12 @@ pip install -e ".[test]"
 ## Utilisation
 
 ```bash
-# Flux live depuis la webcam (fenêtre OpenCV, 'q' ou Échap pour quitter)
-thermal-camera-sim --source webcam --colormap iron
+# Fenêtre interactive : webcam si disponible, sinon démo (c'est aussi ce que fait l'exécutable)
+thermal-camera-sim
+
+# Forcer la démo en direct, ou une image fixe
+thermal-camera-sim --source demo
+thermal-camera-sim --source image --input photo.jpg
 
 # Démo sans webcam : exporte 5 secondes de "sources de chaleur" synthétiques
 thermal-camera-sim --source demo --output demo.mp4 --frames 150 --fps 30
@@ -64,7 +99,8 @@ thermal-camera-sim --source webcam --blur 0 --contrast equalize
   ni fenêtre graphique.
 - `camera.py` — accès webcam réelle, génération de frames synthétiques
   (mode démo), export vidéo. Couche mince au-dessus de `converter.py`.
-- `main.py` — CLI (`argparse`).
+- `viewer.py` — fenêtre interactive (HUD, échelle, mesures, raccourcis), texte rendu avec Pillow.
+- `main.py` — CLI (`argparse`) ; sans `--output`, ouvre la fenêtre interactive.
 
 ## Tests
 

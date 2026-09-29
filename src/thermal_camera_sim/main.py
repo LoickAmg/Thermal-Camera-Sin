@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from thermal_camera_sim.camera import export_thermal_video, stream_webcam
+from thermal_camera_sim.camera import export_thermal_video, load_image_frame
 from thermal_camera_sim.converter import Colormap
 
 
@@ -19,9 +19,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--source",
-        choices=["webcam", "demo", "image"],
-        default="demo",
-        help="Source des frames : webcam réelle, démo synthétique (défaut), ou image fixe.",
+        choices=["auto", "webcam", "demo", "image"],
+        default="auto",
+        help=(
+            "Source des frames : auto (webcam si disponible, sinon démo — défaut), webcam, "
+            "démo synthétique ou image fixe."
+        ),
     )
     parser.add_argument("--input", help="Chemin de l'image (requis avec --source image).")
     parser.add_argument(
@@ -65,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.output:
         path = export_thermal_video(
             output_path=args.output,
-            source=args.source,
+            source="demo" if args.source == "auto" else args.source,
             input_path=args.input,
             colormap=colormap,
             contrast=args.contrast,
@@ -77,24 +80,26 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Vidéo thermique exportée : {path}")
         return 0
 
-    if args.source != "webcam":
-        print(
-            "L'affichage live n'est disponible qu'avec --source webcam. "
-            "Utilisez --output pour exporter une vidéo en mode demo/image.",
-            file=sys.stderr,
-        )
-        return 1
+    # Sans --output : la fenêtre interactive (c'est aussi ce que lance l'exécutable).
+    from thermal_camera_sim.viewer import ThermalViewer
 
-    try:
-        stream_webcam(
-            colormap=colormap,
-            contrast=args.contrast,
-            blur_kernel=args.blur,
-            device_index=args.device,
-        )
-    except RuntimeError as exc:
-        print(f"Erreur : {exc}", file=sys.stderr)
-        return 1
+    still = None
+    if args.source == "image":
+        if not args.input:
+            print("--input est requis avec --source image", file=sys.stderr)
+            return 1
+        try:
+            still = load_image_frame(args.input)
+        except FileNotFoundError as exc:
+            print(f"Erreur : {exc}", file=sys.stderr)
+            return 1
+    viewer = ThermalViewer(
+        device=args.device, prefer_webcam=args.source in ("auto", "webcam"), still=still
+    )
+    viewer.state.palette = colormap
+    viewer.state.contrast = args.contrast
+    viewer.state.blur = max(0, args.blur)
+    viewer.run()
     return 0
 
 

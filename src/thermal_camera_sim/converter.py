@@ -19,18 +19,73 @@ SIMULATED_MAX_C = 45.0
 
 
 class Colormap(str, Enum):
-    """Palettes disponibles, mappées vers les constantes OpenCV correspondantes."""
+    """Palettes des caméras thermiques du commerce."""
 
-    IRON = "iron"  # palette "fer" façon FLIR (noir -> violet -> orange -> blanc)
-    RAINBOW = "rainbow"
-    GRAYSCALE = "grayscale"
+    IRON = "iron"  # « fer » façon FLIR : noir -> bleu nuit -> magenta -> orange -> jaune -> blanc
+    RAINBOW = "rainbow"  # arc-en-ciel haute sensibilité
+    GRAYSCALE = "grayscale"  # « blanc = chaud »
+    BLACK_HOT = "black-hot"  # « noir = chaud », prisé en vision nocturne
+    ARCTIC = "arctic"  # bleus froids, chaud en ambre
+    LAVA = "lava"  # noir -> rouge -> jaune
 
-    def to_cv2(self) -> int | None:
+    @property
+    def label(self) -> str:
         return {
-            Colormap.IRON: cv2.COLORMAP_INFERNO,
-            Colormap.RAINBOW: cv2.COLORMAP_RAINBOW,
-            Colormap.GRAYSCALE: None,
+            Colormap.IRON: "Iron",
+            Colormap.RAINBOW: "Rainbow",
+            Colormap.GRAYSCALE: "White hot",
+            Colormap.BLACK_HOT: "Black hot",
+            Colormap.ARCTIC: "Arctic",
+            Colormap.LAVA: "Lava",
         }[self]
+
+
+# Points de couleur (position 0-1, couleur RGB) des palettes dessinées à la main.
+_PALETTE_STOPS: dict[Colormap, list[tuple[float, tuple[int, int, int]]]] = {
+    Colormap.IRON: [
+        (0.0, (0, 0, 0)),
+        (0.15, (20, 10, 90)),
+        (0.35, (140, 20, 150)),
+        (0.55, (225, 60, 50)),
+        (0.72, (250, 140, 10)),
+        (0.88, (255, 220, 60)),
+        (1.0, (255, 255, 240)),
+    ],
+    Colormap.ARCTIC: [
+        (0.0, (5, 10, 40)),
+        (0.3, (20, 70, 170)),
+        (0.6, (90, 190, 240)),
+        (0.8, (230, 245, 255)),
+        (0.92, (255, 200, 80)),
+        (1.0, (255, 140, 20)),
+    ],
+    Colormap.LAVA: [
+        (0.0, (0, 0, 0)),
+        (0.3, (110, 0, 10)),
+        (0.6, (230, 40, 10)),
+        (0.85, (255, 190, 30)),
+        (1.0, (255, 255, 200)),
+    ],
+}
+
+
+def palette_lut(colormap: Colormap) -> np.ndarray:
+    """Table de correspondance 256 × 1 × 3 (BGR) d'une palette."""
+    ramp = np.arange(256, dtype=np.uint8).reshape(256, 1)
+    if colormap == Colormap.GRAYSCALE:
+        return cv2.cvtColor(ramp, cv2.COLOR_GRAY2BGR).reshape(256, 1, 3)
+    if colormap == Colormap.BLACK_HOT:
+        return cv2.cvtColor(255 - ramp, cv2.COLOR_GRAY2BGR).reshape(256, 1, 3)
+    if colormap == Colormap.RAINBOW:
+        return cv2.applyColorMap(ramp, cv2.COLORMAP_JET).reshape(256, 1, 3)
+    stops = _PALETTE_STOPS[colormap]
+    xs = np.array([s[0] for s in stops]) * 255
+    positions = np.arange(256)
+    rgb = np.stack([np.interp(positions, xs, [s[1][ch] for s in stops]) for ch in range(3)], axis=1)
+    return rgb[:, ::-1].astype(np.uint8).reshape(256, 1, 3)
+
+
+_LUT_CACHE: dict[Colormap, np.ndarray] = {}
 
 
 def to_grayscale_intensity(frame: np.ndarray) -> np.ndarray:
@@ -90,10 +145,10 @@ def apply_colormap(gray: np.ndarray, colormap: Colormap) -> np.ndarray:
     Retourne toujours une image BGR 3 canaux (même en mode GRAYSCALE, pour que
     l'appelant puisse dessiner du texte/overlay couleur dessus uniformément).
     """
-    cv2_map = colormap.to_cv2()
-    if cv2_map is None:
-        return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-    return cv2.applyColorMap(gray, cv2_map)
+    lut = _LUT_CACHE.get(colormap)
+    if lut is None:
+        lut = _LUT_CACHE[colormap] = palette_lut(colormap)
+    return cv2.applyColorMap(gray, lut)
 
 
 def intensity_to_simulated_celsius(value: int) -> float:
