@@ -32,7 +32,8 @@ def synthetic_heat_frame(
     `step`), donc le résultat est reproductible.
     """
     height, width = size
-    yy, xx = np.mgrid[0:height, 0:width].astype(np.float32)
+    ys = np.arange(height, dtype=np.float32)
+    xs = np.arange(width, dtype=np.float32)
     frame = np.zeros((height, width), dtype=np.float32)
 
     for blob_index in range(n_blobs):
@@ -40,8 +41,10 @@ def synthetic_heat_frame(
         cx = width / 2 + (width / 3) * np.cos(phase)
         cy = height / 2 + (height / 3) * np.sin(phase * 1.3)
         radius = min(height, width) / 6
-        dist_sq = (xx - cx) ** 2 + (yy - cy) ** 2
-        frame += 255.0 * np.exp(-dist_sq / (2 * radius**2))
+        # La gaussienne 2D est le produit de deux gaussiennes 1D : bien plus rapide.
+        gy = np.exp(-((ys - cy) ** 2) / (2 * radius**2))
+        gx = np.exp(-((xs - cx) ** 2) / (2 * radius**2))
+        frame += 255.0 * np.outer(gy, gx)
 
     # Léger bruit de fond pour éviter un noir parfaitement uniforme.
     frame += 10.0
